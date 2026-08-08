@@ -1,0 +1,11 @@
+What is Retrieval-Augmented Generation (RAG)?
+
+RAG is an AI design pattern with three steps: Retrieve relevant information from a document collection, Augment the model's input prompt with that retrieved information as context, and Generate an answer using a language model. Because the model's response is grounded in the retrieved data rather than only its training knowledge, RAG reduces hallucinations and allows answers to cite specific sources.
+
+Why RAG matters for Q&A assistants
+
+A general-purpose language model may not know about a specific company's documents, a course's lecture notes, or a product's manual. RAG lets a small local model answer questions about that private content without retraining the model itself. This makes RAG a practical pattern for building offline, on-device Q&A assistants.
+
+Embeddings and vector search
+
+RAG typically relies on an embedding model that converts text into a numerical vector capturing its meaning. Similar pieces of text produce vectors that are close together, which is measured using cosine similarity. To answer a question, the system embeds the query, compares it against the embeddings of all stored document chunks, and retrieves the most similar chunks as context for the language model.

@@ -1,0 +1,11 @@
+SQLite for Local Data Storage
+
+SQLite is a serverless, self-contained SQL database engine stored as a single file on disk. It requires no separate database server or setup, making it a good fit for small local applications such as an offline RAG assistant. SQLite is the most widely deployed database engine in the world and has built-in support in Python through the sqlite3 module.
+
+Using SQLite in this project
+
+This project stores each document chunk together with its embedding vector in a single SQLite table called chunks, with columns for id, source, content, and embedding_json (the embedding stored as a JSON-encoded list of numbers). Because the dataset is small, retrieval simply loads every row and computes similarity in Python; larger datasets would need a dedicated vector database instead.
+
+Basic operations
+
+The three operations used most often are: CREATE TABLE to define the schema, INSERT to add a new chunk after it has been embedded, and SELECT to read chunks back out during retrieval.

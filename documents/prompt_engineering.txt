@@ -1,0 +1,11 @@
+Prompt Engineering for Q&A Assistants
+
+Retrieving the right document chunks is only half of a RAG system — how that information is presented to the language model matters just as much. Prompt engineering is the practice of designing the instructions and context given to a model so it behaves the way you want.
+
+System prompts vs user prompts
+
+Chat-style language models typically accept a system message, which sets the assistant's role and rules, and a user message, which is the actual question. In this project, the system prompt instructs the model to answer using only the retrieved context, to say it doesn't know if the context is insufficient, and to mention which source it used. The user prompt is simply the question typed into the app.
+
+Guidelines used in this project
+
+Two practical rules make a Q&A assistant more trustworthy: first, instruct the model not to answer from outside knowledge if the provided context doesn't cover the question, so it avoids fabricating answers (hallucination); second, ask it to cite which document or source it drew the answer from, so a user can verify the claim. Because very small local models do not always follow instructions reliably, this project also enforces the "don't know" behavior in code: if the best-matching document chunk's similarity score is below a configured threshold, the app skips calling the model entirely and returns a fixed "I don't have that information" response.

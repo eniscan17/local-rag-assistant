@@ -1,0 +1,15 @@
+Foundry Local Overview
+
+Foundry Local is an end-to-end local AI solution from Microsoft for shipping applications that run entirely on a user's device. It provides an easy-to-use SDK for Python, C#, JavaScript, and Rust, a curated catalog of optimized models, and automatic hardware acceleration, all in a lightweight package that adds about 20 MB to an application.
+
+How it works
+
+The runtime handles model acquisition, hardware acceleration, model management, and inference through ONNX Runtime. Models download automatically the first time they are used and are cached locally afterward, so later launches do not need the internet. Foundry Local automatically detects available hardware and accelerates inference on GPUs and NPUs when present, falling back to CPU otherwise.
+
+Privacy and offline use
+
+Because inference happens entirely on-device, prompts and model outputs never leave the computer. The only network access Foundry Local needs is for the first-time download of a model (and its execution provider), or for optional diagnostics if a user chooses to share logs. No Azure subscription is required to use Foundry Local.
+
+Supported platforms
+
+Foundry Local supports Windows, macOS (Apple silicon), and Linux.

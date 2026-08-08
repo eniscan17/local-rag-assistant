@@ -1,0 +1,11 @@
+Project Architecture
+
+This local RAG assistant runs entirely on one machine, with four logical layers working together.
+
+The client interface is the Streamlit chat UI (app.py) — a browser-based page where the user types a question and reads the streamed answer, including which source documents were used.
+
+The pipeline layer coordinates everything: it embeds the incoming question, retrieves the most relevant document chunks, decides whether there is enough relevant context to answer at all, builds the prompt, and streams the model's response back to the interface. This logic lives across ingest.py (data preparation) and retrieval.py plus the question-handling code in app.py (runtime queries).
+
+The data layer is a SQLite database (data/knowledge_base.sqlite3) storing each document chunk's text alongside its embedding vector, managed by db.py.
+
+The AI layer is Microsoft Foundry Local, which runs two small models entirely on-device: an embedding model (converts text to vectors) and a chat model (generates the final answer). Because both models run locally through llm.py, no data ever leaves the computer and, after the models are downloaded once, the whole assistant works fully offline.
