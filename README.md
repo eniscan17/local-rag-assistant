@@ -172,3 +172,12 @@ tests/test_queries.md   sample test questions for manual QA (Week 5 style)
   guessing.
 - **Week 6 (docs & demo):** this README + the sidebar's live chunk count
   can serve as your project write-up and live demo script.
+
+## Related project
+
+[**tool-calling-agent**](https://github.com/eniscan17/tool-calling-agent) —
+a companion project built on the same Foundry Local setup. Where this
+project always does one fixed step (retrieve → answer), tool-calling-agent
+generalizes that into a small AI agent that decides on its own which tool
+to use (calculator, Wikipedia, current time, or a local knowledge base) and
+can chain multiple tools together before answering.
