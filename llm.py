@@ -51,6 +51,7 @@ def initialize(progress_callback=None):
     _chat_model.download(lambda p: report("Downloading chat model", p))
     _chat_model.load()
     _chat_client = _chat_model.get_chat_client()
+    _chat_client.settings.max_tokens = config.CHAT_MAX_TOKENS
 
     if progress_callback:
         progress_callback("Models ready", 100)

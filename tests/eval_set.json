@@ -1,0 +1,43 @@
+{
+  "description": "Automated evaluation set for Local RAG Assistant. Each in_scope case names the document its answer must come from and a few keywords a correct answer should contain (used as a lightweight, no-LLM-judge correctness proxy). out_of_scope cases have no matching document and the assistant should refuse (guardrail should fire) rather than guess.",
+  "cases": [
+    {"id": "emb-1", "category": "in_scope", "question": "What is a text embedding?", "expected_source": "embeddings_vector_search.txt", "expected_keywords": ["vector", "numbers"]},
+    {"id": "emb-2", "category": "in_scope", "question": "What does a cosine similarity value near 1.0 mean?", "expected_source": "embeddings_vector_search.txt", "expected_keywords": ["similar", "direction"]},
+    {"id": "emb-3", "category": "in_scope", "question": "What is semantic search?", "expected_source": "embeddings_vector_search.txt", "expected_keywords": ["meaning"]},
+    {"id": "emb-4", "category": "in_scope", "question": "Which file in this project computes cosine similarity between chunks?", "expected_source": "embeddings_vector_search.txt", "expected_keywords": ["retrieval.py"]},
+    {"id": "emb-5", "category": "in_scope", "question": "Why is a minimum relevance score enforced during retrieval?", "expected_source": "embeddings_vector_search.txt", "expected_keywords": ["irrelevant", "context"]},
+    {"id": "emb-6", "category": "in_scope", "question": "How is cosine similarity used in this project?", "expected_source": "embeddings_vector_search.txt", "expected_keywords": ["cosine", "chunk"]},
+
+    {"id": "fl-1", "category": "in_scope", "question": "What platforms does Foundry Local support?", "expected_source": "foundry_local.txt", "expected_keywords": ["windows", "macos", "linux"]},
+    {"id": "fl-2", "category": "in_scope", "question": "Which company made Foundry Local?", "expected_source": "foundry_local.txt", "expected_keywords": ["microsoft"]},
+    {"id": "fl-3", "category": "in_scope", "question": "What runtime does Foundry Local use for inference?", "expected_source": "foundry_local.txt", "expected_keywords": ["onnx"]},
+    {"id": "fl-4", "category": "in_scope", "question": "Do you need an Azure subscription to use Foundry Local?", "expected_source": "foundry_local.txt", "expected_keywords": ["no", "azure"]},
+    {"id": "fl-5", "category": "in_scope", "question": "Roughly how much does Foundry Local add to an application's size?", "expected_source": "foundry_local.txt", "expected_keywords": ["20"]},
+
+    {"id": "arch-1", "category": "in_scope", "question": "What are the four layers of this project's architecture?", "expected_source": "project_architecture.txt", "expected_keywords": ["four"]},
+    {"id": "arch-2", "category": "in_scope", "question": "What is the client interface layer of this project built with?", "expected_source": "project_architecture.txt", "expected_keywords": ["streamlit"]},
+    {"id": "arch-3", "category": "in_scope", "question": "Which file implements the data layer of this project?", "expected_source": "project_architecture.txt", "expected_keywords": ["db.py"]},
+    {"id": "arch-4", "category": "in_scope", "question": "What are the two models that run in the AI layer?", "expected_source": "project_architecture.txt", "expected_keywords": ["embedding", "chat"]},
+
+    {"id": "prompt-1", "category": "in_scope", "question": "Why does the assistant cite its sources?", "expected_source": "prompt_engineering.txt", "expected_keywords": ["verify"]},
+    {"id": "prompt-2", "category": "in_scope", "question": "What two things does this project's system prompt instruct the model to do?", "expected_source": "prompt_engineering.txt", "expected_keywords": ["context", "cite"]},
+    {"id": "prompt-3", "category": "in_scope", "question": "What fixed response does the app give when nothing relevant is found in the documents?", "expected_source": "prompt_engineering.txt", "expected_keywords": ["don't have"]},
+
+    {"id": "rag-1", "category": "in_scope", "question": "What are the three steps of RAG?", "expected_source": "rag_concepts.txt", "expected_keywords": ["retrieve", "augment", "generate"]},
+    {"id": "rag-2", "category": "in_scope", "question": "Why does RAG reduce hallucinations?", "expected_source": "rag_concepts.txt", "expected_keywords": ["grounded", "retrieved"]},
+    {"id": "rag-3", "category": "in_scope", "question": "Why is RAG a practical pattern for offline Q&A assistants?", "expected_source": "rag_concepts.txt", "expected_keywords": ["retraining"]},
+
+    {"id": "sql-1", "category": "in_scope", "question": "What table does this project use in SQLite?", "expected_source": "sqlite_basics.txt", "expected_keywords": ["chunks"]},
+    {"id": "sql-2", "category": "in_scope", "question": "What Python module provides built-in SQLite support?", "expected_source": "sqlite_basics.txt", "expected_keywords": ["sqlite3"]},
+    {"id": "sql-3", "category": "in_scope", "question": "What are the columns of the chunks table?", "expected_source": "sqlite_basics.txt", "expected_keywords": ["id", "source", "content", "embedding"]},
+
+    {"id": "oos-1", "category": "out_of_scope", "question": "What is the capital of France?"},
+    {"id": "oos-2", "category": "out_of_scope", "question": "What's the weather like today?"},
+    {"id": "oos-3", "category": "out_of_scope", "question": "Who won the last World Cup?"},
+    {"id": "oos-4", "category": "out_of_scope", "question": "What is 15 times 12?"},
+    {"id": "oos-5", "category": "out_of_scope", "question": "Can you recommend a good pizza recipe?"},
+    {"id": "oos-6", "category": "out_of_scope", "question": "What is the tallest mountain in the world?"},
+    {"id": "oos-7", "category": "out_of_scope", "question": "Translate 'good morning' into Spanish."},
+    {"id": "oos-8", "category": "out_of_scope", "question": "Who is the president of the United States?"}
+  ]
+}

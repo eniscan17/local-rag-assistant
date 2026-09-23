@@ -16,10 +16,23 @@ import os
 EMBEDDING_MODEL_ALIAS = "qwen3-embedding-0.6b"
 
 # Small, fast chat model used to generate grounded answers.
-# Swap for "phi-3.5-mini" if you want a larger/slower but more capable model.
-CHAT_MODEL_ALIAS = "qwen2.5-0.5b"
+# Benchmarked with eval_harness.py (tests/eval_results/): qwen2.5-0.5b scores
+# 603ms mean latency / 70.8% answer-keyword-match; phi-3.5-mini scores
+# 5387ms mean latency / 100% answer-keyword-match (retrieval + guardrail
+# accuracy are identical either way, since only the chat model changes).
+# Default is phi-3.5-mini: for a demo/portfolio project, a wrong answer costs
+# more credibility than a few extra seconds of latency. Switch to
+# "qwen2.5-0.5b" if this is ever used somewhere response time is critical.
+CHAT_MODEL_ALIAS = "phi-3.5-mini"
 
 APP_NAME = "foundry_local_rag_summer_school"
+
+# --- Chat generation ----------------------------------------------------
+# Caps how long an answer can be. Smaller = faster to generate, and on this
+# project's eval set (tests/eval_results/) also more reliable: the wrong
+# answers small models gave were almost always rambling past the direct
+# answer into an unsupported or drifted claim, not the first sentence.
+CHAT_MAX_TOKENS = 200
 
 # --- Retrieval --------------------------------------------------------------
 TOP_K = 3                # how many chunks to retrieve per question
@@ -46,6 +59,8 @@ SYSTEM_PROMPT_TEMPLATE = (
     "context provided below, which was retrieved from the user's own "
     "documents. If the context does not contain enough information to "
     "answer confidently, say you don't know instead of guessing. When you "
-    "do answer, mention which source(s) you used.\n\n"
+    "do answer, mention which source(s) you used. Keep the answer to 2-4 "
+    "concise sentences — do not add extra explanation beyond what directly "
+    "answers the question.\n\n"
     "Context:\n{context}"
 )

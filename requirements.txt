@@ -1,3 +1,4 @@
 foundry-local-sdk
 openai
 streamlit
+pytest

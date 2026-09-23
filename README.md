@@ -139,9 +139,13 @@ ingest.py         chunk documents → embed → store (python ingest.py)
 retrieval.py      cosine-similarity search over stored chunks
 llm.py            Foundry Local SDK wrapper (model loading, embeddings, streaming chat)
 app.py            Streamlit chat UI (streamlit run app.py)
+eval_harness.py   automated evaluation runner (python eval_harness.py)
 documents/        your source .txt / .md files (sample docs included)
 data/             generated SQLite database (created automatically)
-tests/test_queries.md   sample test questions for manual QA (Week 5 style)
+tests/test_queries.md      original manual QA log (Week 5 style)
+tests/eval_set.json        automated eval question set (32 cases)
+tests/test_eval_harness.py pytest suite for eval_harness.py's own logic
+tests/eval_results/        generated CSV + Markdown reports (created automatically)
 ```
 
 ## Customizing
@@ -151,6 +155,140 @@ tests/test_queries.md   sample test questions for manual QA (Week 5 style)
   want better answers and don't mind a bit more latency.
 - **Change how many chunks are retrieved:** `TOP_K` in `config.py`.
 - **Change the system prompt / tone:** `SYSTEM_PROMPT_TEMPLATE` in `config.py`.
+
+## Automated evaluation
+
+`tests/test_queries.md` was the original manual Week 5 test log — useful,
+but only as thorough as the 8 questions someone remembers to run by hand.
+`eval_harness.py` automates and extends that idea: it drives the real
+pipeline (`retrieval.py` + `llm.py`, unmodified) through a larger, fixed
+question set (`tests/eval_set.json` — 24 in-scope questions across all six
+sample documents, plus 8 out-of-scope questions that should be refused) and
+reports:
+
+- **Retrieval accuracy** — does the correct source document come back in
+  the top-1 / top-`TOP_K` retrieved chunks for each question?
+- **Guardrail behavior** — for out-of-scope questions, does
+  `MIN_RELEVANCE_SCORE` correctly stop the app from calling the model at
+  all? For in-scope questions, does the guardrail ever *wrongly* refuse?
+- **Answer quality proxy** — for questions the model did answer, does the
+  answer contain at least one expected keyword? (A rough, no-LLM-judge
+  check — not a substitute for reading answers, but it catches regressions
+  automatically on every run.)
+- **Latency** — embedding / retrieval / generation timings (mean, median, p95).
+
+Run it (after `python ingest.py` has built the knowledge base):
+
+```bash
+source .venv/bin/activate
+python eval_harness.py                    # full run, all 32 cases
+python eval_harness.py --limit 5          # quick smoke test
+python eval_harness.py --case fl-1 rag-2  # run only specific case ids
+```
+
+Each run writes a timestamped CSV (raw per-question rows) and a Markdown
+report (summary tables + a list of failing cases with why) into
+`tests/eval_results/`, and prints a summary to the console.
+
+The harness's own logic — guardrail decisions, hit@1/hit@k scoring, report
+generation — is covered by `tests/test_eval_harness.py`, which mocks the
+Foundry Local calls so it runs instantly with no models or GPU/NPU needed:
+
+```bash
+pip install pytest   # if not already installed
+pytest tests/test_eval_harness.py -v
+```
+
+## Model comparison (measured with eval_harness.py)
+
+Ran the full 32-case eval set against both chat model options in `config.py`:
+
+| Metric | qwen2.5-0.5b | phi-3.5-mini | phi-3.5-mini (optimized) |
+|---|---|---|---|
+| Retrieval hit@1 | 95.8% | 95.8% | 95.8% |
+| Retrieval hit@3 | 100% | 100% | 100% |
+| Guardrail accuracy (out-of-scope refused) | 100% | 100% | 100% |
+| Answer keyword-match (in-scope, answered) | 70.8% | 100% | 100% |
+| Mean latency | 603ms | 5387ms | 2873ms |
+| P95 latency | 1470ms | 13787ms | 5280ms |
+
+"Optimized" = same phi-3.5-mini model, with `CHAT_MAX_TOKENS` capping
+output length and a system prompt that asks for a 2-4 sentence answer
+(see "Speed follow-up" below). Capping generation length cut mean latency
+by ~47% and p95 by ~62%, with zero loss in the keyword-match score.
+
+Retrieval and guardrail scores are identical between runs, as expected —
+only the chat model changed, and the harness confirms that isolation
+actually holds in this codebase. The remaining gap between the two models
+is entirely in answer generation: on the 7 cases qwen2.5-0.5b got wrong
+(all retrieval was already correct), it either mis-stated a detail
+(answered a "which file" question with a table name) or contradicted its
+own retrieved context. phi-3.5-mini made no such errors on this set, at
+roughly 9x the latency.
+
+**Decision:** `phi-3.5-mini` is the default. This project's job is to be
+shown to people (recruiters, interviewers), not to serve production
+traffic — a wrong answer costs more credibility in that setting than a
+few extra seconds does. Switch `CHAT_MODEL_ALIAS` back to `qwen2.5-0.5b`
+in `config.py` if this is ever deployed somewhere response time is the
+priority instead.
+
+**Speed follow-up (confirmed):** phi-3.5-mini's original 5.4s average came
+partly from generating longer answers than needed. `CHAT_MAX_TOKENS` in
+`config.py` caps how much the model can generate, and the system prompt asks
+for a 2-4 sentence answer. Re-running the full eval set after this change
+(`tests/eval_results/report_20260921-235212.md`) confirmed mean latency
+dropped from 5387ms to 2873ms (-47%) and p95 from 13787ms to 5280ms (-62%),
+with keyword-match accuracy unchanged at 100%.
+
+---
+
+## Retrieval benchmark on XQuAD EN/TR (`rag_eval/`)
+
+`eval_harness.py` above scores retrieval hit@3 at 100% — but the sample
+knowledge base has only ~10 chunks, where almost any retriever succeeds. `rag_eval/` measures retrieval quantitatively on a
+harder, labelled benchmark instead.
+
+**Benchmark:** [XQuAD](https://github.com/google-deepmind/xquad) (CC BY-SA
+4.0) — the same 240 Wikipedia paragraphs and 1,190 questions, professionally
+translated into English and Turkish. Paragraphs are chunked with the app's
+own chunker (`chunking.py`, 800 chars → ~340 chunks); a chunk counts as
+relevant if it contains the gold answer span. Because content and questions
+are identical across languages, any EN/TR gap is caused by language alone.
+
+**Metrics:** hit@k (is an answer-bearing chunk in the top-k? — the app uses
+k = 3) and MRR@10.
+
+```bash
+pip install -r requirements-eval.txt
+python -m pytest tests/                                   # unit tests, no models needed
+python -m rag_eval.run_retrieval --embedders              # BM25 only, ~1 min
+python -m rag_eval.run_retrieval --embedders qwen3-0.6b e5-small --name dense_v1
+python -m rag_eval.run_retrieval --embedders foundry --name foundry  # the app's own Foundry pipeline (Mac)
+```
+
+Results are written to `results/<name>.md` and `.json`.
+
+### Results so far — lexical baseline
+
+| lang | retriever | hit@1 | hit@3 | hit@10 | MRR@10 |
+|---|---|---|---|---|---|
+| en | BM25 | 0.891 | 0.964 | 0.986 | 0.927 |
+| en | BM25 + F5 stemming | 0.886 | 0.962 | 0.988 | 0.926 |
+| tr | BM25 | 0.786 | 0.890 | 0.939 | 0.841 |
+| tr | BM25 + F5 stemming | **0.862** | **0.944** | **0.982** | **0.907** |
+
+**Finding:** plain BM25 is 10.5 points worse on Turkish than on English at
+hit@1, on identical content. Truncating tokens to their first 5 characters
+(F5 stemming, a standard approximation for Turkish's agglutinative
+morphology — "savunması" ↔ "savunma") recovers 7.6 of those points and
+leaves English unchanged. The prefix length follows the literature default
+rather than being tuned; a sweep over 4–7 characters gives similar Turkish
+gains (hit@1 0.851–0.862), so the result is not an artefact of picking the
+best value on the test set.
+
+Next: dense (embedding) and hybrid retrieval, then answer-quality
+evaluation (exact match / F1 against XQuAD gold answers) for the generator.
 
 ## Troubleshooting
 
