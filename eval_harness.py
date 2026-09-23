@@ -99,11 +99,10 @@ def run_case(case: dict) -> CaseResult:
     query_embedding = llm.embed_query(question)
     t1 = time.perf_counter()
 
-    top_chunks = retrieval.get_top_chunks(query_embedding)
+    top_chunks, top_score = retrieval.search(question, query_embedding)
     t2 = time.perf_counter()
 
     retrieved_sources = [c["source"] for c in top_chunks]
-    top_score = top_chunks[0]["score"] if top_chunks else 0.0
     guardrail_fired = top_score < config.MIN_RELEVANCE_SCORE
 
     generate_ms = 0.0
@@ -312,6 +311,10 @@ def main():
 
     print("Initializing Foundry Local models (first run downloads them — may take a while)...")
     llm.initialize()
+    indexed_with = db.get_meta("embedder")
+    if indexed_with != llm.embedder_id():
+        sys.exit(f"Knowledge base was built with {indexed_with or 'an older version'} but config "
+                 f"uses {llm.embedder_id()}. Run `python ingest.py` first.")
     try:
         results = []
         for i, case in enumerate(cases, 1):

@@ -44,15 +44,16 @@ class SentenceTransformerEmbedder(Embedder):
 
 
 class FoundryEmbedder(Embedder):
-    """Uses the app's own Foundry Local pipeline (Mac only)."""
+    """The app's own Foundry Local embedding path, incl. the query instruction (Mac only)."""
 
     def __init__(self):
         import config
         import llm
 
+        config.EMBEDDING_BACKEND = "foundry"  # benchmark Foundry regardless of the app's setting
         llm.initialize()
         self._llm = llm
-        self.name = f"foundry:{config.EMBEDDING_MODEL_ALIAS}"
+        self.name = llm.embedder_id()
 
     def embed_documents(self, texts):
         return _normalize(self._llm.embed_texts(texts))

@@ -2,3 +2,6 @@ foundry-local-sdk
 openai
 streamlit
 pytest
+rank_bm25
+numpy
+sentence-transformers

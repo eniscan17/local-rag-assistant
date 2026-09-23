@@ -61,6 +61,7 @@ def run_ingestion(progress_callback=None):
     db.clear_chunks()
     rows = [(source, content, emb) for (source, content), emb in zip(all_chunks, embeddings)]
     db.insert_chunks(rows)
+    db.set_meta("embedder", llm.embedder_id())
 
     return len(rows)
 

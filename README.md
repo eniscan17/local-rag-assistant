@@ -161,7 +161,7 @@ tests/eval_results/        generated CSV + Markdown reports (created automatical
 `tests/test_queries.md` was the original manual Week 5 test log — useful,
 but only as thorough as the 8 questions someone remembers to run by hand.
 `eval_harness.py` automates and extends that idea: it drives the real
-pipeline (`retrieval.py` + `llm.py`, unmodified) through a larger, fixed
+pipeline (`retrieval.py` + `llm.py`) through a larger, fixed
 question set (`tests/eval_set.json` — 24 in-scope questions across all six
 sample documents, plus 8 out-of-scope questions that should be refused) and
 reports:
@@ -310,8 +310,51 @@ Caveat: the cloud/CI runs use the Hugging Face release of
 qwen3-embedding-0.6b; the Foundry Local build the app loads may be
 quantised differently (`--embedders foundry` measures it directly).
 
-Next: apply the winning setup to the app, then evaluate answer quality
-(exact match / F1 against XQuAD gold answers).
+### Applying it to the app
+
+The app now uses the winning setup by default (`config.py`):
+`EMBEDDING_BACKEND = "sentence-transformers"` (multilingual-e5-small) and
+`RETRIEVAL_MODE = "hybrid"`. The lexical code lives in `lexical.py` and is
+shared by the app and the benchmark, so the benchmark measures exactly what
+the app runs. The Foundry embedding path is still available
+(`EMBEDDING_BACKEND = "foundry"`) and now sends Qwen3's query instruction.
+The index records which embedder built it; the app warns (and
+`eval_harness.py` stops) if the configuration changed without re-running
+`python ingest.py`.
+
+**Guardrail recalibration.** Cosine scores are not comparable across
+embedding models — e5 packs everything into roughly 0.72–0.92 — so the old
+0.35 threshold would let every question through. `MIN_RELEVANCE_SCORE` is
+now per backend and derived with `python -m rag_eval.calibrate_threshold`,
+which scores the 32 questions of `tests/eval_set.json`: lowest in-scope
+0.818, highest out-of-scope 0.792 → threshold **0.805**.
+
+`eval_harness.py` before → after (same 32 questions; reports
+`tests/eval_results/report_20260921-235212.md` → `report_20260923-185315.md`):
+
+| | before (qwen3 dense) | after (e5 hybrid) |
+|---|---|---|
+| Retrieval hit@1 | 95.8% | **100%** |
+| Retrieval hit@3 | 100% | 100% |
+| False refusals (in-scope) | 0% | 0% |
+| Out-of-scope correctly refused | 100% | 100% |
+| Keyword match (answered in-scope) | 100% | 100% |
+
+**Limitations — read before trusting these numbers:**
+
+- The guardrail threshold was chosen on the same 32 questions it is then
+  evaluated on, so the 100% refusal rate is optimistic by construction.
+  The margin is also thin (0.026 between the two groups, 8 out-of-scope
+  examples); an unseen off-topic question can land above it, in which case
+  the chat model's own "I don't know" is the second line of defence. A
+  larger held-out out-of-scope set is the obvious next step.
+- The small eval set can't separate retrievers (both score 100% hit@3);
+  that is what the XQuAD benchmark above is for.
+- Latency is not compared: `CHAT_MAX_TOKENS` changed between the runs, so
+  any difference can't be attributed to retrieval.
+
+Next: evaluate answer quality on XQuAD (exact match / F1 against the gold
+answers) to check that the retrieval gains carry through to the answers.
 
 ## Troubleshooting
 

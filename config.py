@@ -11,9 +11,33 @@ print([m.alias for m in FoundryLocalManager.instance.catalog.list_models()])"
 
 import os
 
-# --- Foundry Local models -------------------------------------------------
-# Small, fast embedding model (used to vectorize document chunks & queries).
+# --- Embeddings ---------------------------------------------------------------
+# Chosen with the XQuAD EN/TR retrieval benchmark (rag_eval/, see README):
+#   "sentence-transformers": multilingual-e5-small, best measured setup
+#       (TR hit@1 89.5% in hybrid mode vs 74.5% for the original setup),
+#       5x smaller than qwen3-embedding-0.6b. Downloads once from Hugging
+#       Face, then runs offline like everything else.
+#   "foundry": qwen3-embedding-0.6b through Foundry Local (no PyTorch
+#       needed), with the query instruction the model expects.
+# Changing the backend changes every stored vector: rebuild the knowledge
+# base afterwards (python ingest.py). The app warns if you forget.
+EMBEDDING_BACKEND = "sentence-transformers"
+
+ST_EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
+ST_QUERY_PREFIX = "query: "      # e5 models are trained with these prefixes
+ST_DOC_PREFIX = "passage: "
+
+# Foundry Local embedding model (used when EMBEDDING_BACKEND = "foundry").
 EMBEDDING_MODEL_ALIAS = "qwen3-embedding-0.6b"
+# Qwen3-Embedding expects an instruction on queries (not on documents).
+# Omitting it — as the app originally did — costs 5.0 hit@1 points on
+# Turkish and 4.0 on English in the benchmark.
+FOUNDRY_QUERY_INSTRUCTION = (
+    "Instruct: Given a web search query, retrieve relevant passages that "
+    "answer the query\nQuery:"
+)
+
+# --- Foundry Local chat model ------------------------------------------------
 
 # Small, fast chat model used to generate grounded answers.
 # Benchmarked with eval_harness.py (tests/eval_results/): qwen2.5-0.5b scores
@@ -36,6 +60,11 @@ CHAT_MAX_TOKENS = 200
 
 # --- Retrieval --------------------------------------------------------------
 TOP_K = 3                # how many chunks to retrieve per question
+
+# "hybrid" = dense + Turkish-aware BM25, fused with reciprocal rank fusion
+# (best in the benchmark); "dense" = embeddings only (original behaviour).
+RETRIEVAL_MODE = "hybrid"
+BM25_PREFIX_LEN = 5       # "F5 stemming" for BM25; None disables it
 CHUNK_MAX_CHARS = 800     # rough max size of a chunk before it's split further
 
 # Minimum cosine-similarity score the best-matching chunk must have before we
@@ -45,7 +74,15 @@ CHUNK_MAX_CHARS = 800     # rough max size of a chunk before it's split further
 # instead of relying on the model to behave. Tune by testing real queries:
 # lower it if legitimate questions get rejected, raise it if off-topic
 # questions still get answered.
-MIN_RELEVANCE_SCORE = 0.35
+#
+# The right value depends on the embedding model — e5 similarities sit in a
+# much higher, narrower range than Qwen3's — so there is one value per
+# backend. Re-derive it with:  python -m rag_eval.calibrate_threshold
+MIN_RELEVANCE_SCORES = {
+    "foundry": 0.35,                 # hand-tuned in Week 5 (pre-instruction)
+    "sentence-transformers": 0.805,  # calibrated with rag_eval.calibrate_threshold
+}
+MIN_RELEVANCE_SCORE = MIN_RELEVANCE_SCORES[EMBEDDING_BACKEND]
 
 # --- Paths -------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

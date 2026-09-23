@@ -114,3 +114,59 @@ def test_paired_diff_detects_real_gap_only():
     b = np.array([1.0] * 700 + [0.0] * 300)
     assert stats.paired_diff(a, b)["significant"]
     assert not stats.paired_diff(a, a)["significant"]
+
+
+# --- app retrieval (hybrid search) and guardrail calibration -------------------
+
+import config  # noqa: E402
+import retrieval  # noqa: E402
+from rag_eval.calibrate_threshold import suggest_threshold  # noqa: E402
+
+_FAKE_KB = [
+    {"id": 1, "source": "a.txt", "content": "Panthers savunma hattı çok güçlüydü", "embedding": [1.0, 0.0]},
+    {"id": 2, "source": "b.txt", "content": "Bir başka konu hakkında metin", "embedding": [0.6, 0.8]},
+    {"id": 3, "source": "c.txt", "content": "Tamamen alakasız bir paragraf", "embedding": [0.0, 1.0]},
+]
+
+
+@pytest.fixture
+def fake_kb(monkeypatch):
+    monkeypatch.setattr(retrieval.db, "get_all_chunks", lambda: [dict(c) for c in _FAKE_KB])
+    retrieval._bm25_cache["key"] = None
+    yield
+
+
+def test_search_dense_mode(fake_kb, monkeypatch):
+    monkeypatch.setattr(config, "RETRIEVAL_MODE", "dense")
+    chunks, best = retrieval.search("anything", [0.6, 0.8], top_k=2)
+    assert [c["id"] for c in chunks] == [2, 3]
+    assert best == pytest.approx(1.0)
+
+
+def test_search_hybrid_lets_bm25_promote_a_lexical_match(fake_kb, monkeypatch):
+    monkeypatch.setattr(config, "RETRIEVAL_MODE", "hybrid")
+    monkeypatch.setattr(config, "BM25_PREFIX_LEN", 5)
+    # Dense prefers chunk 3, but only chunk 1 shares the (stemmed) word "savunma".
+    chunks, best = retrieval.search("savunması nasıldı", [0.0, 1.0], top_k=3)
+    ids = [c["id"] for c in chunks]
+    assert ids.index(1) < ids.index(2)
+    # The guardrail signal stays the best *cosine*, independent of fusion order.
+    assert best == pytest.approx(1.0)
+    assert all("score" in c for c in chunks)
+
+
+def test_search_empty_kb(monkeypatch):
+    monkeypatch.setattr(retrieval.db, "get_all_chunks", lambda: [])
+    assert retrieval.search("q", [1.0, 0.0]) == ([], 0.0)
+
+
+def test_suggest_threshold_separable():
+    s = suggest_threshold([0.85, 0.9, 0.95], [0.7, 0.75])
+    assert s["separable"] and 0.75 < s["threshold"] < 0.85
+    assert s["threshold"] == pytest.approx(0.80)
+
+
+def test_suggest_threshold_overlap_minimises_errors():
+    s = suggest_threshold([0.6, 0.9, 0.95], [0.7, 0.72])
+    assert not s["separable"]
+    assert s["false_refusals"] + s["false_accepts"] == 1

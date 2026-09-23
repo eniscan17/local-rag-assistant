@@ -44,7 +44,22 @@ def init_db():
             )
             """
         )
+        conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
         conn.commit()
+
+
+def set_meta(key: str, value: str):
+    with get_connection() as conn:
+        conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, value))
+        conn.commit()
+
+
+def get_meta(key: str):
+    """Return a stored metadata value, or None (also for indexes built before meta existed)."""
+    with get_connection() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+        row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+    return row[0] if row else None
 
 
 def clear_chunks():

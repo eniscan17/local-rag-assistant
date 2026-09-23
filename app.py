@@ -57,7 +57,14 @@ with st.sidebar:
                 st.error(f"Ingestion failed: {e}")
 
     st.divider()
-    st.caption(f"Embedding model: `{config.EMBEDDING_MODEL_ALIAS}`")
+    st.caption(f"Embedding: `{llm.embedder_id()}` · retrieval: `{config.RETRIEVAL_MODE}`")
+    indexed_with = db.get_meta("embedder")
+    if n_chunks and indexed_with != llm.embedder_id():
+        st.warning(
+            f"The knowledge base was built with `{indexed_with or 'an older version'}`, "
+            f"but the app is configured for `{llm.embedder_id()}`. "
+            "Click **Rebuild knowledge base** so the stored vectors match."
+        )
     st.caption(f"Chat model: `{config.CHAT_MODEL_ALIAS}`")
 
 if n_chunks == 0:
@@ -87,8 +94,7 @@ if question:
         st.write(question)
 
     query_embedding = llm.embed_query(question)
-    top_chunks = retrieval.get_top_chunks(query_embedding)
-    best_score = top_chunks[0]["score"] if top_chunks else 0.0
+    top_chunks, best_score = retrieval.search(question, query_embedding)
 
     with st.chat_message("assistant"):
         if best_score < config.MIN_RELEVANCE_SCORE:
