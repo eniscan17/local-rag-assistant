@@ -13,3 +13,6 @@ data/*.sqlite3
 
 # Foundry Local local config/cache (machine-specific)
 .foundry/
+
+# Eval harness downloads & embedding cache
+rag_eval/data/

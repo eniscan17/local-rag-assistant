@@ -86,3 +86,31 @@ def test_rrf_rewards_agreement():
     fused = rrf([["a", "b", "c"], ["b", "a", "d"]], k=4)
     assert set(fused[:2]) == {"a", "b"}
     assert fused.index("c") > 1 and fused.index("d") > 1
+
+
+# --- statistics ----------------------------------------------------------------
+
+from rag_eval import stats  # noqa: E402
+from rag_eval.run_retrieval import first_ranks  # noqa: E402
+
+
+def test_first_ranks():
+    runs = [["a", "b"], ["c", "d"], ["x", "y"]]
+    gold = [{"b"}, {"c"}, {"z"}]
+    assert first_ranks(runs, gold) == [2, 1, 0]
+    assert list(stats.hits([2, 1, 0], 1)) == [0.0, 1.0, 0.0]
+    assert list(stats.hits([2, 1, 0], 3)) == [1.0, 1.0, 0.0]
+
+
+def test_ci_contains_mean_and_is_narrow_for_constant():
+    lo, hi = stats.ci([1.0] * 50)
+    assert lo == hi == 1.0
+    lo, hi = stats.ci([0, 1] * 500)
+    assert lo < 0.5 < hi and hi - lo < 0.1
+
+
+def test_paired_diff_detects_real_gap_only():
+    a = np.array([1.0] * 900 + [0.0] * 100)
+    b = np.array([1.0] * 700 + [0.0] * 300)
+    assert stats.paired_diff(a, b)["significant"]
+    assert not stats.paired_diff(a, a)["significant"]

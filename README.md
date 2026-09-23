@@ -269,26 +269,49 @@ python -m rag_eval.run_retrieval --embedders foundry --name foundry  # the app's
 
 Results are written to `results/<name>.md` and `.json`.
 
-### Results so far — lexical baseline
+### Results
 
-| lang | retriever | hit@1 | hit@3 | hit@10 | MRR@10 |
-|---|---|---|---|---|---|
-| en | BM25 | 0.891 | 0.964 | 0.986 | 0.927 |
-| en | BM25 + F5 stemming | 0.886 | 0.962 | 0.988 | 0.926 |
-| tr | BM25 | 0.786 | 0.890 | 0.939 | 0.841 |
-| tr | BM25 + F5 stemming | **0.862** | **0.944** | **0.982** | **0.907** |
+Full tables with 95% bootstrap confidence intervals: [`results/retrieval_all.md`](results/retrieval_all.md)
+(reproduce with `python -m rag_eval.run_retrieval --embedders qwen3-0.6b qwen3-0.6b-instruct e5-small --name retrieval_all`).
 
-**Finding:** plain BM25 is 10.5 points worse on Turkish than on English at
-hit@1, on identical content. Truncating tokens to their first 5 characters
-(F5 stemming, a standard approximation for Turkish's agglutinative
-morphology — "savunması" ↔ "savunma") recovers 7.6 of those points and
-leaves English unchanged. The prefix length follows the literature default
-rather than being tuned; a sweep over 4–7 characters gives similar Turkish
-gains (hit@1 0.851–0.862), so the result is not an artefact of picking the
-best value on the test set.
+hit@1 / hit@3 in %, a selection:
 
-Next: dense (embedding) and hybrid retrieval, then answer-quality
-evaluation (exact match / F1 against XQuAD gold answers) for the generator.
+| setup | EN hit@1 | EN hit@3 | TR hit@1 | TR hit@3 |
+|---|---|---|---|---|
+| **App today:** qwen3-embedding-0.6b, dense | 86.0 | 96.1 | 74.5 | 88.1 |
+| BM25 | 89.1 | 96.4 | 78.6 | 89.0 |
+| BM25 + F5 stemming | 88.6 | 96.2 | 86.2 | 94.4 |
+| qwen3-0.6b + query instruction, dense | 90.0 | 97.8 | 79.5 | 91.7 |
+| multilingual-e5-small, dense | 90.6 | 97.7 | 86.9 | 95.5 |
+| **multilingual-e5-small + F5-BM25, hybrid (RRF)** | **92.4** | **98.5** | **89.5** | **97.1** |
+
+**Findings** (all differences below are significant under a paired
+bootstrap over questions — 95% CI excludes zero — unless noted):
+
+1. **The app's current retriever is the weakest option on Turkish** —
+   74.5% hit@1, below even plain BM25. On identical content, it trails its
+   own English score by 11.5 points.
+2. **Turkish morphology explains much of the gap.** F5 stemming lifts
+   BM25 on Turkish by +7.6 hit@1 [+5.6, +9.7] and does nothing for English.
+3. **The query instruction matters.** Qwen3-Embedding expects an
+   instruction prefix on queries; the app omits it. Adding it gains +5.0
+   hit@1 on Turkish and +4.0 on English with no model change.
+4. **Hybrid only helps when the lexical side is language-aware.** On
+   Turkish, fusing e5 with plain BM25 does not help (86.9 → 86.1); fusing
+   it with F5-stemmed BM25 does (→ 89.5, +2.6 [+1.2, +3.9] over e5 alone).
+5. **Best setup:** multilingual-e5-small + F5-BM25 hybrid. Versus the app
+   today: Turkish hit@1 **+15.0 points [+12.6, +17.3]**, top-3 misses cut
+   from 11.9% to 2.9% (≈4×); English hit@1 +6.5 [+4.5, +8.4]. The EN/TR
+   gap shrinks from 11.5 to 2.9 points, with an embedding model 5× smaller
+   (118M vs 600M parameters). On English it is statistically tied with
+   instructed Qwen3 hybrid (+0.9 [−0.3, +2.1]).
+
+Caveat: the cloud/CI runs use the Hugging Face release of
+qwen3-embedding-0.6b; the Foundry Local build the app loads may be
+quantised differently (`--embedders foundry` measures it directly).
+
+Next: apply the winning setup to the app, then evaluate answer quality
+(exact match / F1 against XQuAD gold answers).
 
 ## Troubleshooting
 
