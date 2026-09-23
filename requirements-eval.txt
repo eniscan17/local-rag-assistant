@@ -1,0 +1,6 @@
+# Extra dependencies for the evaluation harness (rag_eval/).
+# The app itself only needs requirements.txt.
+numpy
+rank_bm25
+sentence-transformers
+pytest

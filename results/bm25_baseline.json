@@ -1,0 +1,75 @@
+{
+  "config": {
+    "langs": [
+      "en",
+      "tr"
+    ],
+    "embedders": [],
+    "max_chars": 800,
+    "bm25_prefix": 5,
+    "limit": null,
+    "name": "bm25_baseline"
+  },
+  "dataset": {
+    "en": {
+      "chunks": 337,
+      "queries": 1190,
+      "answers_split_across_chunks": 6
+    },
+    "tr": {
+      "chunks": 342,
+      "queries": 1190,
+      "answers_split_across_chunks": 4
+    }
+  },
+  "results": [
+    {
+      "lang": "en",
+      "embedder": "-",
+      "retriever": "bm25",
+      "hit@1": 0.8907563025210085,
+      "hit@3": 0.9638655462184874,
+      "hit@5": 0.9739495798319328,
+      "hit@10": 0.9857142857142858,
+      "mrr@10": 0.9273362678404695,
+      "n_queries": 1190,
+      "seconds": 0.6
+    },
+    {
+      "lang": "en",
+      "embedder": "-",
+      "retriever": "bm25-p5",
+      "hit@1": 0.8857142857142857,
+      "hit@3": 0.9621848739495799,
+      "hit@5": 0.9739495798319328,
+      "hit@10": 0.9882352941176471,
+      "mrr@10": 0.9257082833133253,
+      "n_queries": 1190,
+      "seconds": 0.6
+    },
+    {
+      "lang": "tr",
+      "embedder": "-",
+      "retriever": "bm25",
+      "hit@1": 0.7857142857142857,
+      "hit@3": 0.8899159663865546,
+      "hit@5": 0.9159663865546218,
+      "hit@10": 0.9394957983193277,
+      "mrr@10": 0.8412631719354409,
+      "n_queries": 1190,
+      "seconds": 0.5
+    },
+    {
+      "lang": "tr",
+      "embedder": "-",
+      "retriever": "bm25-p5",
+      "hit@1": 0.8621848739495799,
+      "hit@3": 0.9436974789915966,
+      "hit@5": 0.9621848739495799,
+      "hit@10": 0.9815126050420168,
+      "mrr@10": 0.9067620381485928,
+      "n_queries": 1190,
+      "seconds": 0.5
+    }
+  ]
+}

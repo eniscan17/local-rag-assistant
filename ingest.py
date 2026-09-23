@@ -15,6 +15,7 @@ import os
 import config
 import db
 import llm
+from chunking import chunk_text as _chunk_text
 
 
 def _read_documents():
@@ -29,35 +30,6 @@ def _read_documents():
         with open(path, "r", encoding="utf-8") as f:
             docs.append((os.path.basename(path), f.read()))
     return docs
-
-
-def _chunk_text(text: str, max_chars: int = None):
-    """
-    Split text into chunks along paragraph breaks, merging short paragraphs
-    together and splitting any paragraph that's still too long.
-    """
-    max_chars = max_chars or config.CHUNK_MAX_CHARS
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-
-    chunks = []
-    current = ""
-    for para in paragraphs:
-        candidate = (current + "\n\n" + para).strip() if current else para
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            if current:
-                chunks.append(current)
-            if len(para) <= max_chars:
-                current = para
-            else:
-                # Hard-split an overly long paragraph
-                for i in range(0, len(para), max_chars):
-                    chunks.append(para[i:i + max_chars])
-                current = ""
-    if current:
-        chunks.append(current)
-    return chunks
 
 
 def run_ingestion(progress_callback=None):
