@@ -145,6 +145,8 @@ data/             generated SQLite database (created automatically)
 tests/test_queries.md      original manual QA log (Week 5 style)
 tests/eval_set.json        automated eval question set (32 cases)
 tests/test_eval_harness.py pytest suite for eval_harness.py's own logic
+rag_eval/                  XQuAD EN/TR retrieval + answer-quality benchmarks (see below)
+tests/test_rag_eval.py, tests/test_answers.py   unit tests for rag_eval/
 tests/eval_results/        generated CSV + Markdown reports (created automatically)
 ```
 
@@ -353,8 +355,56 @@ which scores the 32 questions of `tests/eval_set.json`: lowest in-scope
 - Latency is not compared: `CHAT_MAX_TOKENS` changed between the runs, so
   any difference can't be attributed to retrieval.
 
-Next: evaluate answer quality on XQuAD (exact match / F1 against the gold
-answers) to check that the retrieval gains carry through to the answers.
+## Answer quality on XQuAD EN/TR (`rag_eval/run_answers.py`)
+
+Better retrieval only matters if it produces better *answers*. This stage
+feeds XQuAD questions through the chat model the app actually uses and
+scores the answers against the gold spans.
+
+**Design — four conditions per question**, so each pipeline stage can be
+isolated:
+
+| condition | context given to the model | measures |
+|---|---|---|
+| `closed` | none | what the model already knows (floor) |
+| `oracle` | only the gold chunk(s) | the reader alone, with perfect retrieval (ceiling) |
+| `e5-small/hybrid(bm25-p5)` | top-3 from the app's current retriever | the app today |
+| `qwen3-0.6b/dense` | top-3 from the app's original retriever | the app before the retrieval benchmark |
+
+The same question ids are used in English and Turkish, so the EN/TR gap is
+a paired comparison. Wrong answers in the retrieved conditions are split into
+*retrieval missed the gold chunk* vs *gold chunk retrieved, model still
+wrong* — which tells you whether the next improvement belongs in the
+retriever or in the generator.
+
+**Metrics** (`rag_eval/answer_metrics.py`): SQuAD exact match and token F1,
+plus `contains` (gold span appears in the answer) for full-sentence answers.
+Normalisation is Turkish-aware: dotted/dotless i, and apostrophe suffixes
+are dropped (`Paris'te` = `Paris`), since Turkish attaches case endings to
+names and numbers that way. Two prompts: `--prompt short` (extractive span,
+the default — makes EM/F1 meaningful) and `--prompt app` (the app's own 2–4
+sentence prompt, scored with `contains`).
+
+```bash
+pip install -r requirements-eval.txt
+python -m pytest tests/test_answers.py                     # no models needed
+python -m rag_eval.run_answers --sample 20 --name answers_smoke   # ~5 min smoke test (Mac)
+python -m rag_eval.run_answers --generator foundry:phi-3.5-mini --sample 300 --name answers_phi35
+python -m rag_eval.run_answers --generator foundry:qwen2.5-0.5b --sample 300 --name answers_qwen05
+```
+
+Answers are cached in `rag_eval/data/answers/`, so an interrupted run resumes
+where it stopped. `--generator hf:<model id>` runs the same benchmark with
+Hugging Face transformers on machines without Foundry Local.
+
+Sanity checks on the full data: echoing the gold answer scores 100% EM in
+both languages; in 5 EN / 7 TR of 1,190 questions the gold span is not
+recoverable from the oracle chunk (answer split by the chunker, or
+punctuation inside the span), which caps `oracle` at ≈99.5%.
+
+### Results
+
+*(pending — filled in from `results/answers_*.md` after the Mac run)*
 
 ## Troubleshooting
 
