@@ -404,7 +404,46 @@ punctuation inside the span), which caps `oracle` at ≈99.5%.
 
 ### Results
 
-*(pending — filled in from `results/answers_*.md` after the Mac run)*
+Full report: [`results/answers_phi35.md`](results/answers_phi35.md) — phi-3.5-mini
+(the app's chat model, via Foundry Local), 300 questions per language,
+extractive prompt. F1 in %, 95% bootstrap CI:
+
+| condition | EN F1 | TR F1 |
+|---|---|---|
+| closed book (no context) | 16.8 [13.7–20.0] | 3.3 [2.1–4.7] |
+| oracle (gold chunk only) | 77.2 [73.5–80.9] | 51.3 [46.4–56.4] |
+| **app today:** e5-small + F5-BM25 hybrid | **75.4** [71.4–79.1] | **43.6** [38.6–48.5] |
+| app before: qwen3-0.6b dense | 72.3 [68.2–76.4] | 44.9 [39.6–49.7] |
+
+**Findings** (paired bootstrap over questions):
+
+1. **English: the retrieval gain reaches the answers.** The new retriever
+   beats the old one by +3.1 F1 [+0.3, +6.0] and is statistically tied with
+   oracle retrieval (−1.8 [−4.6, +0.9]) — for English, retrieval is no longer
+   the bottleneck.
+2. **Turkish: it does not.** Retrieval misses fell from 9.0% to 1.7%, yet
+   answer F1 is unchanged (−1.3 [−5.1, +2.4]). The 23 questions only the new
+   retriever finds are ones the model fails *even with the gold chunk*
+   (oracle F1 22.6 on them): the retrieval gains landed on questions the
+   reader cannot answer anyway.
+3. **The Turkish bottleneck is now the reader.** Given only the gold chunk,
+   phi-3.5-mini scores 51.3 F1 in Turkish vs 77.2 in English on the same
+   questions (−26.0 [−31.2, −21.2]). 58% of all Turkish questions fail with
+   the gold chunk retrieved, against 1.7% that fail because retrieval
+   missed it.
+4. **Distractors cost more in Turkish.** Three retrieved chunks instead of the
+   gold chunk alone cost 1.8 F1 in English (n.s.) but 7.6 [3.6, 11.8] in
+   Turkish.
+
+Checked against metric artefacts: the model answers in Turkish (1 of 147
+wrong oracle answers looks English), and number-word vs digit mismatches
+("dört" vs "4") explain only 5 of them — the gap is real comprehension
+error, not scoring.
+
+**What this means for the app:** further retrieval work will not move
+Turkish answer quality. The next lever is the reader — a stronger
+multilingual chat model or a Turkish-instructed prompt — and this harness
+measures that with one command (`--generator foundry:<alias>`).
 
 ## Troubleshooting
 
