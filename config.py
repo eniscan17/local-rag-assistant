@@ -39,15 +39,14 @@ FOUNDRY_QUERY_INSTRUCTION = (
 
 # --- Foundry Local chat model ------------------------------------------------
 
-# Small, fast chat model used to generate grounded answers.
-# Benchmarked with eval_harness.py (tests/eval_results/): qwen2.5-0.5b scores
-# 603ms mean latency / 70.8% answer-keyword-match; phi-3.5-mini scores
-# 5387ms mean latency / 100% answer-keyword-match (retrieval + guardrail
-# accuracy are identical either way, since only the chat model changes).
-# Default is phi-3.5-mini: for a demo/portfolio project, a wrong answer costs
-# more credibility than a few extra seconds of latency. Switch to
-# "qwen2.5-0.5b" if this is ever used somewhere response time is critical.
-CHAT_MODEL_ALIAS = "phi-3.5-mini"
+# Chat model used to generate grounded answers. Chosen with the XQuAD EN/TR
+# answer-quality benchmark (rag_eval/run_answers.py, see README):
+#   phi-3.5-mini: Turkish F1 43.6 with the app's retriever, English 75.4
+#   qwen2.5-7b:   Turkish F1 68.7 (+25.1), English 78.3; ~1.3x slower
+# On the app's own 32-question eval set qwen2.5-7b keeps 0% false refusals
+# and 100% out-of-scope refusals (keyword match 95.8% vs 100%, one miss).
+# Lighter options: "phi-3.5-mini" (2.2 GB) or "qwen2.5-0.5b" (fastest, weakest).
+CHAT_MODEL_ALIAS = "qwen2.5-7b"
 
 APP_NAME = "foundry_local_rag_summer_school"
 

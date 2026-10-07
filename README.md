@@ -228,7 +228,7 @@ is entirely in answer generation: on the 7 cases qwen2.5-0.5b got wrong
 own retrieved context. phi-3.5-mini made no such errors on this set, at
 roughly 9x the latency.
 
-**Decision:** `phi-3.5-mini` is the default. This project's job is to be
+**Decision (Sept 2026):** `phi-3.5-mini` became the default (since replaced by `qwen2.5-7b`, see the XQuAD answer-quality section below). This project's job is to be
 shown to people (recruiters, interviewers), not to serve production
 traffic — a wrong answer costs more credibility in that setting than a
 few extra seconds does. Switch `CHAT_MODEL_ALIAS` back to `qwen2.5-0.5b`
@@ -444,6 +444,34 @@ error, not scoring.
 Turkish answer quality. The next lever is the reader — a stronger
 multilingual chat model or a Turkish-instructed prompt — and this harness
 measures that with one command (`--generator foundry:<alias>`).
+
+### Follow-up: a stronger reader closes most of the Turkish gap
+
+Same 300 questions, qwen2.5-7b (Foundry Local, 5.2 GB) instead of
+phi-3.5-mini ([`results/answers_qwen7b.md`](results/answers_qwen7b.md)):
+
+| F1 | phi-3.5-mini | qwen2.5-7b |
+|---|---|---|
+| TR, oracle | 51.3 | **71.8** |
+| TR, app retriever | 43.6 | **68.7** (+25.1) |
+| EN, app retriever | 75.4 | 78.3 |
+| TR − EN gap (oracle) | −26.0 | **−9.6** [−14.3, −4.9] |
+
+The Turkish confidence intervals do not overlap ([38.6–48.5] vs
+[63.9–73.3]); the English gain is within noise. Most of the Turkish gap was
+model capacity, not the language itself. New failure mode: qwen2.5-7b
+over-refuses — it answers "unanswerable" for ~10% of questions whose answer
+is in the context (phi-3.5-mini: ~1%), which is why its English `contains`
+score is slightly lower.
+
+**Decision:** `qwen2.5-7b` is now the default chat model (`config.py`).
+Checked on the app's own pipeline before switching (`eval_harness.py`,
+`tests/eval_results/report_20261007-233231.md`): 0% false refusals, 100% of
+out-of-scope questions refused, keyword match 95.8% (one miss: asked which
+file implements the data layer, it named the SQLite file instead of
+`db.py`), mean latency 3.9 s. The over-refusal seen on XQuAD does not show
+up there, because the app prompt does not offer an "unanswerable" escape
+phrase.
 
 ## Troubleshooting
 
